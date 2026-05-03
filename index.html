@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Les Fractales — Grand Oral Maths</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --gold: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; }
+
+  header {
+    padding: 40px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap;
+  }
+  header h1 { font-family: 'DM Serif Display', serif; font-size: 32px; font-weight: 400; color: #fff; }
+  header .tag { font-size: 11px; color: var(--accent2); letter-spacing: .12em; text-transform: uppercase; border: 1px solid var(--accent2); padding: 3px 10px; border-radius: 20px; }
+
+  nav {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  nav button {
+    background: none; border: none; color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 13px; padding: 14px 28px; cursor: pointer; white-space: nowrap;
+    border-bottom: 2px solid transparent; transition: all .2s;
+  }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  nav button:hover { color: var(--text); }
+
+  .main { display: grid; grid-template-columns: 1fr 320px; min-height: calc(100vh - 130px); }
+  @media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+  .canvas-area { position: relative; background: #050508; display: flex; align-items: center; justify-content: center; min-height: 500px; }
+  canvas { display: block; cursor: crosshair; }
+
+  .panel {
+    background: var(--surface); border-left: 1px solid var(--border);
+    padding: 24px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
+  }
+  .panel-section { display: flex; flex-direction: column; gap: 10px; }
+  .panel-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .panel-title { font-family: 'DM Serif Display', serif; font-size: 18px; color: #fff; font-weight: 400; }
+  .panel-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  .ctrl { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl-row { display: flex; justify-content: space-between; align-items: center; }
+  .ctrl-name { font-size: 12px; color: var(--muted); }
+  .ctrl-val { font-size: 12px; color: var(--accent2); font-weight: 400; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 3px;
+    background: var(--border); border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--accent); cursor: pointer;
+  }
+
+  .fact-box {
+    background: rgba(124,58,237,.08); border: 1px solid rgba(124,58,237,.25);
+    border-radius: 8px; padding: 14px; font-size: 12px; color: #a78bfa; line-height: 1.7;
+  }
+  .formula {
+    background: rgba(6,182,212,.06); border: 1px solid rgba(6,182,212,.2);
+    border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--accent2);
+    text-align: center; letter-spacing: .03em;
+  }
+
+  .fractal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fractal-btn {
+    background: var(--border); border: 1px solid transparent; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 12px; padding: 10px 8px;
+    border-radius: 6px; cursor: pointer; transition: all .2s; text-align: center;
+  }
+  .fractal-btn.active { background: rgba(124,58,237,.15); border-color: var(--accent); color: var(--accent); }
+  .fractal-btn:hover { color: var(--text); }
+
+  .dim-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25);
+    border-radius: 6px; padding: 8px 14px; font-size: 13px; color: var(--gold);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Les Fractales</h1>
+  <span class="tag">Grand Oral — Maths</span>
+</header>
+
+<nav>
+  <button class="active" onclick="setFractal('mandelbrot',this)">Ensemble de Mandelbrot</button>
+  <button onclick="setFractal('koch',this)">Flocon de Koch</button>
+  <button onclick="setFractal('sierpinski',this)">Triangle de Sierpiński</button>
+  <button onclick="setFractal('julia',this)">Ensemble de Julia</button>
+</nav>
+
+<div class="main">
+  <div class="canvas-area">
+    <canvas id="c"></canvas>
+  </div>
+
+  <div class="panel">
+    <div class="panel-section">
+      <div class="panel-label">Définition</div>
+      <div class="panel-title" id="frac-title">Ensemble de Mandelbrot</div>
+      <div class="panel-desc" id="frac-desc">
+        Défini en 1980 par Benoît Mandelbrot. Pour chaque point c du plan complexe, on calcule la suite z→z²+c en partant de z=0. Si la suite reste bornée, c est dans l'ensemble (en noir). La frontière entre les deux zones est d'une complexité infinie — on peut zoomer indéfiniment et toujours trouver de nouvelles structures.
+      </div>
+    </div>
+
+    <div class="panel-section" id="iter-ctrl">
+      <div class="panel-label">Paramètres</div>
+      <div class="ctrl">
+        <div class="ctrl-row">
+          <span class="ctrl-name">Itérations max</span>
+          <span class="ctrl-val" id="iter-val">80</span>
+        </div>
+        <input type="range" min="20" max="200" value="80" id="iter" oninput="updateIter(this.value)">
+      </div>
+    </div>
+
+    <div class="panel-section" id="depth-ctrl" style="display:none">
+      <div class="panel-label">Paramètres</div>
+      <div class="ctrl">
+        <div class="ctrl-row">
+          <span class="ctrl-name">Profondeur</span>
+          <span class="ctrl-val" id="depth-val">5</span>
+        </div>
+        <input type="range" min="1" max="8" value="5" id="depth" oninput="updateDepth(this.value)">
+      </div>
+    </div>
+
+    <div class="formula" id="frac-formula">z → z² + c</div>
+
+    <div class="panel-section">
+      <div class="panel-label">Dimension fractale</div>
+      <div class="dim-badge">
+        <span>d =</span>
+        <span id="dim-val" style="font-size:16px;font-weight:500">2.00</span>
+      </div>
+      <div class="panel-desc" id="dim-desc">La frontière de Mandelbrot a une dimension fractale de 2 — la plus haute possible pour une courbe plane.</div>
+    </div>
+
+    <div class="fact-box" id="frac-fact">
+      Auto-similarité : zoomez sur n'importe quelle partie de la frontière et vous retrouverez des mini-Mandelbrot. La structure se répète à toutes les échelles.
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Changer de fractale</div>
+      <div class="fractal-btns">
+        <div class="fractal-btn active" onclick="setFractal('mandelbrot',this)">Mandelbrot</div>
+        <div class="fractal-btn" onclick="setFractal('julia',this)">Julia</div>
+        <div class="fractal-btn" onclick="setFractal('koch',this)">Flocon Koch</div>
+        <div class="fractal-btn" onclick="setFractal('sierpinski',this)">Sierpiński</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let currentFractal = 'mandelbrot';
+let maxIter = 80;
+let depth = 5;
+
+function resize() {
+  const area = canvas.parentElement;
+  const panelW = window.innerWidth > 900 ? 320 : 0;
+  const w = Math.min(area.clientWidth, window.innerWidth - panelW);
+  const h = Math.max(500, window.innerHeight - 130);
+  canvas.width = w;
+  canvas.height = h;
+  render();
+}
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(f(0)*255), Math.round(f(8)*255), Math.round(f(4)*255)];
+}
+
+function drawMandelbrot() {
+  const W = canvas.width, H = canvas.height;
+  const img = ctx.createImageData(W, H);
+  const xmin = -2.5, xmax = 1.0, ymin = -1.25, ymax = 1.25;
+  for (let px = 0; px < W; px++) {
+    for (let py = 0; py < H; py++) {
+      const cx = xmin + (px / W) * (xmax - xmin);
+      const cy = ymin + (py / H) * (ymax - ymin);
+      let zx = 0, zy = 0, i = 0;
+      while (zx*zx + zy*zy <= 4 && i < maxIter) {
+        const tmp = zx*zx - zy*zy + cx;
+        zy = 2*zx*zy + cy;
+        zx = tmp; i++;
+      }
+      const idx = (py * W + px) * 4;
+      if (i === maxIter) {
+        img.data[idx] = img.data[idx+1] = img.data[idx+2] = 0;
+      } else {
+        const t = i / maxIter;
+        const [r,g,b] = hslToRgb(240 + t * 180, 80, 20 + t * 60);
+        img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = b;
+      }
+      img.data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawJulia() {
+  const W = canvas.width, H = canvas.height;
+  const img = ctx.createImageData(W, H);
+  const cr = -0.7, ci = 0.27;
+  for (let px = 0; px < W; px++) {
+    for (let py = 0; py < H; py++) {
+      let zx = (px / W) * 3.5 - 1.75;
+      let zy = (py / H) * 3.5 - 1.75;
+      let i = 0;
+      while (zx*zx + zy*zy <= 4 && i < maxIter) {
+        const tmp = zx*zx - zy*zy + cr;
+        zy = 2*zx*zy + ci;
+        zx = tmp; i++;
+      }
+      const idx = (py * W + px) * 4;
+      if (i === maxIter) {
+        img.data[idx] = img.data[idx+1] = img.data[idx+2] = 0;
+      } else {
+        const t = i / maxIter;
+        const [r,g,b] = hslToRgb(180 + t * 160, 90, 15 + t * 65);
+        img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = b;
+      }
+      img.data[idx+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawKoch() {
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const W = canvas.width, H = canvas.height;
+  const size = Math.min(W, H) * 0.7;
+  const cx = W / 2, cy = H / 2 + size * 0.15;
+  const h = size * Math.sqrt(3) / 2;
+  const p1 = [cx - size/2, cy];
+  const p2 = [cx + size/2, cy];
+  const p3 = [cx, cy - h];
+
+  ctx.strokeStyle = '#7c3aed';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  kochSide(p1, p2, depth);
+  kochSide(p2, p3, depth);
+  kochSide(p3, p1, depth);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.fillStyle = 'rgba(124,58,237,0.04)';
+  ctx.fill();
+}
+
+function kochSide(p1, p2, d) {
+  if (d === 0) {
+    ctx.lineTo(p2[0], p2[1]);
+    return;
+  }
+  const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+  const a = [p1[0] + dx/3, p1[1] + dy/3];
+  const b = [p1[0] + 2*dx/3, p1[1] + 2*dy/3];
+  const angle = Math.atan2(dy, dx) - Math.PI/3;
+  const len = Math.sqrt(dx*dx + dy*dy) / 3;
+  const peak = [a[0] + Math.cos(angle)*len, a[1] + Math.sin(angle)*len];
+  ctx.moveTo(p1[0], p1[1]);
+  kochSide(p1, a, d-1);
+  kochSide(a, peak, d-1);
+  kochSide(peak, b, d-1);
+  kochSide(b, p2, d-1);
+}
+
+function drawSierpinski() {
+  ctx.fillStyle = '#050508';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const W = canvas.width, H = canvas.height;
+  const size = Math.min(W, H) * 0.8;
+  const cx = W / 2, cy = H / 2;
+  const h = size * Math.sqrt(3) / 2;
+  sierp([cx, cy - h*0.6], [cx - size/2, cy + h*0.4], [cx + size/2, cy + h*0.4], depth);
+}
+
+function sierp(p1, p2, p3, d) {
+  if (d === 0) {
+    ctx.beginPath();
+    ctx.moveTo(p1[0], p1[1]);
+    ctx.lineTo(p2[0], p2[1]);
+    ctx.lineTo(p3[0], p3[1]);
+    ctx.closePath();
+    const t = 1 - d / depth;
+    ctx.fillStyle = `hsl(${260 + Math.random()*40}, 70%, 45%)`;
+    ctx.fillStyle = '#7c3aed';
+    ctx.fill();
+    ctx.strokeStyle = '#050508';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+    return;
+  }
+  const m12 = [(p1[0]+p2[0])/2, (p1[1]+p2[1])/2];
+  const m23 = [(p2[0]+p3[0])/2, (p2[1]+p3[1])/2];
+  const m13 = [(p1[0]+p3[0])/2, (p1[1]+p3[1])/2];
+  sierp(p1, m12, m13, d-1);
+  sierp(m12, p2, m23, d-1);
+  sierp(m13, m23, p3, d-1);
+}
+
+const fractalData = {
+  mandelbrot: {
+    title: 'Ensemble de Mandelbrot',
+    desc: 'Défini en 1980 par Benoît Mandelbrot. Pour chaque point c du plan complexe, on calcule la suite z→z²+c en partant de z=0. Si la suite reste bornée, c est dans l\'ensemble. La frontière est d\'une complexité infinie.',
+    formula: 'z → z² + c',
+    dim: '2.00',
+    dimDesc: 'La frontière de Mandelbrot a une dimension fractale de 2 — la plus haute possible pour une courbe plane.',
+    fact: 'Auto-similarité : zoomez sur n\'importe quelle partie de la frontière et vous retrouverez des mini-Mandelbrot. La structure se répète à toutes les échelles.',
+    ctrl: 'iter'
+  },
+  julia: {
+    title: 'Ensemble de Julia',
+    desc: 'Variante de Mandelbrot : ici c est fixé (c = -0.7 + 0.27i) et c\'est le point de départ z qui varie. Chaque valeur de c donne un ensemble de Julia différent. Ils sont tous liés à Mandelbrot : un point c dans Mandelbrot donne un Julia connexe.',
+    formula: 'z → z² + (-0.7 + 0.27i)',
+    dim: '∼1.5',
+    dimDesc: 'La dimension fractale d\'un ensemble de Julia varie selon le paramètre c choisi.',
+    fact: 'Gaston Julia a découvert ces ensembles en 1918 — bien avant les ordinateurs. Il les a étudiés purement par le calcul, sans jamais pouvoir les visualiser.',
+    ctrl: 'iter'
+  },
+  koch: {
+    title: 'Flocon de Koch',
+    desc: 'Construit en 1904 par Helge von Koch. On part d\'un triangle équilatéral et on remplace le tiers central de chaque côté par un triangle équilatéral plus petit. À chaque étape, le périmètre est multiplié par 4/3 → il tend vers l\'infini, alors que l\'aire reste finie !',
+    formula: 'Pₙ = 3 × (4/3)ⁿ × côté',
+    dim: '1.26',
+    dimDesc: 'La dimension de Koch est log(4)/log(3) ≈ 1.26 — entre une ligne (1D) et une surface (2D).',
+    fact: 'Paradoxe : le périmètre est infini mais l\'aire est exactement 8/5 fois l\'aire du triangle initial. Une frontière infinie qui enclot une surface finie.',
+    ctrl: 'depth'
+  },
+  sierpinski: {
+    title: 'Triangle de Sierpiński',
+    desc: 'Décrit par Wacław Sierpiński en 1915. On part d\'un triangle plein et on retire le triangle central à chaque étape. Après n étapes, il reste 3ⁿ triangles de côté (1/2)ⁿ. À l\'infini, l\'aire tend vers 0 mais la structure reste.',
+    formula: 'Aₙ = (3/4)ⁿ × A₀ → 0',
+    dim: '1.585',
+    dimDesc: 'Dimension = log(3)/log(2) ≈ 1.585. Entre une ligne et une surface.',
+    fact: 'Ce triangle apparaît dans le triangle de Pascal ! Si on colorie les nombres impairs, on obtient exactement le triangle de Sierpiński.',
+    ctrl: 'depth'
+  }
+};
+
+function setFractal(name, btn) {
+  currentFractal = name;
+  document.querySelectorAll('.fractal-btn, nav button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const d = fractalData[name];
+  document.getElementById('frac-title').textContent = d.title;
+  document.getElementById('frac-desc').textContent = d.desc;
+  document.getElementById('frac-formula').textContent = d.formula;
+  document.getElementById('dim-val').textContent = d.dim;
+  document.getElementById('dim-desc').textContent = d.dimDesc;
+  document.getElementById('frac-fact').textContent = d.fact;
+  document.getElementById('iter-ctrl').style.display = d.ctrl === 'iter' ? '' : 'none';
+  document.getElementById('depth-ctrl').style.display = d.ctrl === 'depth' ? '' : 'none';
+  render();
+}
+
+function updateIter(v) {
+  maxIter = parseInt(v);
+  document.getElementById('iter-val').textContent = v;
+  render();
+}
+function updateDepth(v) {
+  depth = parseInt(v);
+  document.getElementById('depth-val').textContent = v;
+  render();
+}
+
+function render() {
+  if (currentFractal === 'mandelbrot') drawMandelbrot();
+  else if (currentFractal === 'julia') drawJulia();
+  else if (currentFractal === 'koch') drawKoch();
+  else if (currentFractal === 'sierpinski') drawSierpinski();
+}
+
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>
